@@ -6,11 +6,7 @@ Position = Tuple[int, int]
 
 
 class Board:
-    """
-    Immutable-ish board representation with helper methods for move legality
-    and win detection. Stones are stored as integers:
-    - 1 for black, -1 for white, 0 for empty.
-    """
+
 
     def __init__(self, size: int = 15):
         self.size = size
