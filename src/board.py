@@ -6,11 +6,7 @@ Position = Tuple[int, int]
 
 
 class Board:
-    """
-    Immutable-ish board representation with helper methods for move legality
-    and win detection. Stones are stored as integers:
-    - 1 for black, -1 for white, 0 for empty.
-    """
+
 
     def __init__(self, size: int = 15):
         self.size = size
@@ -56,10 +52,7 @@ class Board:
         return result[0] if result else None
 
     def get_winner_line(self) -> Optional[Tuple[int, List[Position]]]:
-        """
-        Returns (player, positions) for the winning sequence if present,
-        otherwise None.
-        """
+
         if not self.moves:
             return None
         x, y = self.moves[-1]
@@ -70,7 +63,7 @@ class Board:
             line = self._collect_dir(x, y, dx, dy, player, line)
             line = self._collect_dir(x, y, -dx, -dy, player, line)
             if len(line) >= 5:
-                # Sort line from start to end for consistency
+
                 line.sort()
                 return player, line
         return None
@@ -95,9 +88,7 @@ class Board:
         return acc
 
     def generate_moves(self, radius: int = 2) -> List[Position]:
-        """
-        Generate candidate moves near existing stones to reduce branching.
-        """
+
         if not self.moves:
             mid = self.size // 2
             return [(mid, mid)]

@@ -3,6 +3,14 @@ from __future__ import annotations
 import argparse
 import tkinter as tk
 from typing import Optional
+import os
+
+try:
+    import pygame
+    _PYGAME_AVAILABLE = True
+except Exception:
+    pygame = None
+    _PYGAME_AVAILABLE = False
 
 from .board import Board
 from .engine import Engine
@@ -35,6 +43,11 @@ class GomokuGUI:
         self.window.bind("<Escape>", self._exit_fullscreen)
         default_status = "Simulation: black vs white" if simulate else "Turn: Human"
         self.status = tk.StringVar(value=default_status)
+
+        # sound support (optional)
+        self._sounds = {}
+        self._pygame = pygame if _PYGAME_AVAILABLE else None
+        self._init_sounds()
 
         # Fit the board to the screen while keeping generous cell size
         self.window.update_idletasks()
@@ -126,6 +139,11 @@ class GomokuGUI:
             self.status.set("Invalid move. Try again.")
             return
         self._draw_stone((x, y), color)
+        # play move sound
+        try:
+            self._play_move_sound(player)
+        except Exception:
+            pass
         if self._check_end():
             return
         self.current_player *= -1
@@ -139,6 +157,10 @@ class GomokuGUI:
         move = self.engine.choose_move(self.board, -1)
         self.board.place_move(move, -1)
         self._draw_stone(move, "white")
+        try:
+            self._play_move_sound(-1)
+        except Exception:
+            pass
         if self._check_end():
             return
         self.current_player = 1
@@ -159,10 +181,26 @@ class GomokuGUI:
                 message = "Black wins!" if player == 1 else "White wins!"
             self.status.set(message)
             self._draw_win_line(positions)
+            # play end sound (win/lose)
+            try:
+                if self.game_mode == "human_ai":
+                    # player == 1 means human won
+                    if player == 1:
+                        self._play_game_end_sound("win")
+                    else:
+                        self._play_game_end_sound("lose")
+                else:
+                    self._play_game_end_sound("win")
+            except Exception:
+                pass
             self._show_end_popup(message)
             return True
         if self.board.is_full():
             self.status.set("Draw!")
+            try:
+                self._play_game_end_sound("draw")
+            except Exception:
+                pass
             self._show_end_popup("Draw!")
             return True
         return False
@@ -227,6 +265,10 @@ class GomokuGUI:
             self.status.set(f"Simulation stopped: no move for {color}")
             return
         self._draw_stone(move, color)
+        try:
+            self._play_move_sound(player)
+        except Exception:
+            pass
         if self._check_end():
             return
         self.current_player *= -1
@@ -340,6 +382,62 @@ class GomokuGUI:
 
     def run(self):
         self.window.mainloop()
+
+    # Sound helpers
+    def _init_sounds(self):
+        """Initialize optional sounds. Looks for a `sounds/` folder next to this file
+        with optional files: move.wav, win.wav, lose.wav, draw.wav. If pygame is not
+        available or files are missing, fall back to tkinter bell.
+        """
+        base_dir = os.path.join(os.path.dirname(__file__), "sounds")
+        files = {
+            "move": os.path.join(base_dir, "move.wav"),
+            "win": os.path.join(base_dir, "win.wav"),
+            "lose": os.path.join(base_dir, "lose.wav"),
+            "draw": os.path.join(base_dir, "draw.wav"),
+        }
+        if self._pygame:
+            try:
+                if not self._pygame.mixer.get_init():
+                    self._pygame.mixer.init()
+            except Exception:
+                # mixer init failed -> disable pygame usage
+                self._pygame = None
+        for k, path in files.items():
+            if os.path.exists(path) and self._pygame:
+                try:
+                    self._sounds[k] = self._pygame.mixer.Sound(path)
+                except Exception:
+                    # skip loading this sound
+                    pass
+
+    def _play_sound(self, key: str):
+        """Play a loaded sound by key or fall back to a short bell if unavailable."""
+        snd = self._sounds.get(key)
+        if snd and self._pygame:
+            try:
+                snd.play()
+                return
+            except Exception:
+                pass
+        # final fallback: a short system bell
+        try:
+            self.window.bell()
+        except Exception:
+            pass
+
+    def _play_move_sound(self, player: int):
+        # optionally play different move tones for black/white in future; use same for now
+        self._play_sound("move")
+
+    def _play_game_end_sound(self, result: str):
+        # result should be one of: "win", "lose", "draw"
+        if result == "win":
+            self._play_sound("win")
+        elif result == "lose":
+            self._play_sound("lose")
+        else:
+            self._play_sound("draw")
 
 
 def main():
